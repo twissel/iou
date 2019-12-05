@@ -6,6 +6,7 @@ use std::marker::PhantomData;
 use std::time::Duration;
 
 use super::IoUring;
+use uring_sys::__kernel_timespec;
 
 pub struct SubmissionQueue<'ring> {
     ring: NonNull<uring_sys::io_uring>,
@@ -161,6 +162,11 @@ impl<'a> SubmissionQueueEvent<'a> {
     }
 
     #[inline]
+    pub unsafe fn prep_timeout_remove(&mut self, user_data: u64) {
+        uring_sys::io_uring_prep_timeout_remove(self.sqe, user_data as _, 0)
+    }
+
+    #[inline]
     pub unsafe fn prep_timeout_with_flags(
         &mut self,
         ts: &uring_sys::__kernel_timespec,
@@ -174,7 +180,14 @@ impl<'a> SubmissionQueueEvent<'a> {
     }
 
     #[inline]
-    pub fn prep_prep_sendmsg(&mut self, fd: RawFd, msg: &mut libc::msghdr) {}
+    pub unsafe fn prep_sendmsg(&mut self, fd: RawFd, msg: &libc::msghdr, flags: SendMsgFlags) {
+        uring_sys::io_uring_prep_sendmsg(self.sqe, fd, msg, flags.bits())
+    }
+
+    #[inline]
+    pub unsafe fn prep_recvmsg(&mut self, fd: RawFd, msg: &mut libc::msghdr, flags: RecvMsgFlags) {
+        uring_sys::io_uring_prep_recvmsg(self.sqe, fd, msg, flags.bits())
+    }
 
     #[inline]
     pub unsafe fn prep_poll_add(&mut self, fd: RawFd, poll_mask: PollMask) {
@@ -184,6 +197,26 @@ impl<'a> SubmissionQueueEvent<'a> {
     #[inline]
     pub unsafe fn prep_poll_remove(&mut self, user_data: u64) {
         uring_sys::io_uring_prep_poll_remove(self.sqe, user_data as *mut _)
+    }
+
+    #[inline]
+    pub unsafe fn prep_accept(&mut self, fd: RawFd, addr: &mut libc::sockaddr, addr_len: &mut libc::socklen_t, flags: AcceptFlags) {
+        uring_sys::io_uring_prep_accept(self.sqe, fd, addr, addr_len, flags.bits())
+    }
+
+    #[inline]
+    pub unsafe fn io_uring_prep_cancel(&mut self, user_data: u64) {
+        uring_sys::io_uring_prep_cancel(self.sqe, user_data as _, 0)
+    }
+
+    #[inline]
+    pub  unsafe fn prep_link_timeout(&mut self, ts: &mut __kernel_timespec) {
+        uring_sys::io_uring_prep_link_timeout(self.sqe, ts, 0)
+    }
+
+    #[link_name = "rust_io_uring_prep_connect"]
+    pub unsafe fn io_uring_prep_connect(&mut self, fd: RawFd, addr: &mut libc::sockaddr, addr_len: libc::socklen_t) {
+        uring_sys::io_uring_prep_connect(self.sqe, fd, addr, addr_len)
     }
 
     #[inline]
@@ -229,13 +262,45 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     pub struct PollMask: i16 {
-        const POLLIN = 0x1;
-        const POLLPRI = 0x2;
-        const POLLOUT = 0x4;
-        const POLLERR = 0x8;
-        const POLLHUP = 0x10;
-        const POLLNVAL = 0x20;
-        const POLLRDNORM = 0x040;
-        const POLLRDBAND = 0x080;
+        const POLLIN     = libc::POLLIN;
+        const POLLPRI    = libc::POLLPRI;
+        const POLLOUT    = libc::POLLOUT;
+        const POLLERR    = libc::POLLERR;
+        const POLLHUP    = libc::POLLHUP;
+        const POLLNVAL   = libc::POLLNVAL;
+        const POLLRDNORM = libc::POLLRDNORM;
+        const POLLRDBAND = libc::POLLRDBAND;
+    }
+}
+
+bitflags::bitflags! {
+    pub struct SendMsgFlags: libc::c_uint {
+        const MSG_CONFIRM   = libc::MSG_CONFIRM as _;
+        const MSG_DONTROUTE = libc::MSG_DONTROUTE as _;
+        const MSG_DONTWAIT  = libc::MSG_DONTWAIT as _;
+        const MSG_EOR       = libc::MSG_EOR as _;
+        const MSG_MORE      = libc::MSG_MORE as _;
+        const MSG_NOSIGNAL  = libc::MSG_NOSIGNAL as _;
+        const MSG_OOB       = libc::MSG_OOB as _;
+    }
+}
+
+
+bitflags::bitflags! {
+    pub struct RecvMsgFlags: libc::c_uint {
+        const MSG_CMSG_CLOEXEC = libc::MSG_CMSG_CLOEXEC as _;
+        const MSG_DONTWAIT     = libc::MSG_DONTWAIT as _;
+        const MSG_ERRQUEUE     = libc::MSG_ERRQUEUE as _;
+        const MSG_OOB          = libc::MSG_OOB as _;
+        const MSG_PEEK         = libc::MSG_PEEK as _;
+        const MSG_TRUNC        = libc::MSG_TRUNC as _;
+        const MSG_WAITALL      = libc::MSG_WAITALL as _;
+    }
+}
+
+bitflags::bitflags! {
+    pub struct AcceptFlags: libc::c_int {
+        const SOCK_NONBLOCK = libc::SOCK_NONBLOCK;
+        const SOCK_CLOEXEC  = libc::SOCK_CLOEXEC;
     }
 }
