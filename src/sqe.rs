@@ -174,6 +174,19 @@ impl<'a> SubmissionQueueEvent<'a> {
     }
 
     #[inline]
+    pub fn prep_prep_sendmsg(&mut self, fd: RawFd, msg: &mut libc::msghdr) {}
+
+    #[inline]
+    pub unsafe fn prep_poll_add(&mut self, fd: RawFd, poll_mask: PollMask) {
+        uring_sys::io_uring_prep_poll_add(self.sqe, fd, poll_mask.bits())
+    }
+
+    #[inline]
+    pub unsafe fn prep_poll_remove(&mut self, user_data: u64) {
+        uring_sys::io_uring_prep_poll_remove(self.sqe, user_data as *mut _)
+    }
+
+    #[inline]
     pub unsafe fn prep_nop(&mut self) {
         uring_sys::io_uring_prep_nop(self.sqe);
     }
@@ -211,5 +224,18 @@ bitflags::bitflags! {
 bitflags::bitflags! {
     pub struct TimeoutFlags: u32 {
         const TIMEOUT_ABS   = 1 << 0;
+    }
+}
+
+bitflags::bitflags! {
+    pub struct PollMask: i16 {
+        const POLLIN = 0x1;
+        const POLLPRI = 0x2;
+        const POLLOUT = 0x4;
+        const POLLERR = 0x8;
+        const POLLHUP = 0x10;
+        const POLLNVAL = 0x20;
+        const POLLRDNORM = 0x040;
+        const POLLRDBAND = 0x080;
     }
 }
