@@ -181,12 +181,12 @@ impl<'a> SubmissionQueueEvent<'a> {
 
     #[inline]
     pub unsafe fn prep_sendmsg(&mut self, fd: RawFd, msg: &libc::msghdr, flags: SendMsgFlags) {
-        uring_sys::io_uring_prep_sendmsg(self.sqe, fd, msg, flags.bits())
+        uring_sys::io_uring_prep_sendmsg(self.sqe, fd, msg, flags.bits() as _)
     }
 
     #[inline]
     pub unsafe fn prep_recvmsg(&mut self, fd: RawFd, msg: &mut libc::msghdr, flags: RecvMsgFlags) {
-        uring_sys::io_uring_prep_recvmsg(self.sqe, fd, msg, flags.bits())
+        uring_sys::io_uring_prep_recvmsg(self.sqe, fd, msg, flags.bits() as _)
     }
 
     #[inline]
@@ -274,27 +274,27 @@ bitflags::bitflags! {
 }
 
 bitflags::bitflags! {
-    pub struct SendMsgFlags: libc::c_uint {
-        const MSG_CONFIRM   = libc::MSG_CONFIRM as _;
-        const MSG_DONTROUTE = libc::MSG_DONTROUTE as _;
-        const MSG_DONTWAIT  = libc::MSG_DONTWAIT as _;
-        const MSG_EOR       = libc::MSG_EOR as _;
-        const MSG_MORE      = libc::MSG_MORE as _;
-        const MSG_NOSIGNAL  = libc::MSG_NOSIGNAL as _;
-        const MSG_OOB       = libc::MSG_OOB as _;
+    pub struct SendMsgFlags: libc::c_int {
+        const MSG_CONFIRM   = libc::MSG_CONFIRM;
+        const MSG_DONTROUTE = libc::MSG_DONTROUTE;
+        const MSG_DONTWAIT  = libc::MSG_DONTWAIT;
+        const MSG_EOR       = libc::MSG_EOR;
+        const MSG_MORE      = libc::MSG_MORE;
+        const MSG_NOSIGNAL  = libc::MSG_NOSIGNAL;
+        const MSG_OOB       = libc::MSG_OOB;
     }
 }
 
 
 bitflags::bitflags! {
-    pub struct RecvMsgFlags: libc::c_uint {
-        const MSG_CMSG_CLOEXEC = libc::MSG_CMSG_CLOEXEC as _;
-        const MSG_DONTWAIT     = libc::MSG_DONTWAIT as _;
-        const MSG_ERRQUEUE     = libc::MSG_ERRQUEUE as _;
-        const MSG_OOB          = libc::MSG_OOB as _;
-        const MSG_PEEK         = libc::MSG_PEEK as _;
-        const MSG_TRUNC        = libc::MSG_TRUNC as _;
-        const MSG_WAITALL      = libc::MSG_WAITALL as _;
+    pub struct RecvMsgFlags: libc::c_int {
+        const MSG_CMSG_CLOEXEC = libc::MSG_CMSG_CLOEXEC;
+        const MSG_DONTWAIT     = libc::MSG_DONTWAIT;
+        const MSG_ERRQUEUE     = libc::MSG_ERRQUEUE;
+        const MSG_OOB          = libc::MSG_OOB;
+        const MSG_PEEK         = libc::MSG_PEEK;
+        const MSG_TRUNC        = libc::MSG_TRUNC;
+        const MSG_WAITALL      = libc::MSG_WAITALL;
     }
 }
 
