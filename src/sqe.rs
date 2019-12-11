@@ -200,7 +200,7 @@ impl<'a> SubmissionQueueEvent<'a> {
     }
 
     #[inline]
-    pub unsafe fn prep_accept(&mut self, fd: RawFd, addr: &mut libc::sockaddr, addr_len: &mut libc::socklen_t, flags: AcceptFlags) {
+    pub unsafe fn prep_accept(&mut self, fd: RawFd, addr: *mut libc::sockaddr, addr_len: *mut libc::socklen_t, flags: AcceptFlags) {
         uring_sys::io_uring_prep_accept(self.sqe, fd, addr, addr_len, flags.bits())
     }
 
