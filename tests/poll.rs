@@ -26,7 +26,7 @@ fn test_poll_add() -> io::Result<()> {
     unsafe {
         let mut sqe = ring.next_sqe().expect("no sqe");
         sqe.prep_poll_add(read, iou::PollMask::POLLIN);
-        sqe.set_user_data(42);
+        sqe.set_user_data(0xDEADBEEF);
         ring.submit_sqes()?;
     }
 
@@ -44,8 +44,30 @@ fn test_poll_add() -> io::Result<()> {
     }
 
     let cqe = ring.wait_for_cqe()?;
-    assert_eq!(cqe.user_data(), 42);
+    assert_eq!(cqe.user_data(), 0xDEADBEEF);
     let mask = unsafe { iou::PollMask::from_bits_unchecked(cqe.result()? as _) };
     assert!(mask.contains(iou::PollMask::POLLIN));
     Ok(())
+}
+
+#[test]
+fn test_poll_remove() -> io::Result<()> {
+    let mut ring = iou::IoUring::new(2)?;
+    let (read, _) = pipe()?;
+
+    unsafe {
+        let mut sqe = ring.next_sqe().expect("no sqe");
+        sqe.prep_poll_add(read, iou::PollMask::POLLIN);
+        sqe.set_user_data(0xDEADBEEF);
+        ring.submit_sqes()?;
+
+        let mut sqe = ring.next_sqe().expect("no sqe");
+        sqe.prep_poll_remove(0xDEADBEEF);
+        ring.submit_sqes()?;
+        for _ in 0..2 {
+            let cqe = ring.wait_for_cqe()?;
+            let _ = cqe.result()?;
+        }
+        Ok(())
+    }
 }
