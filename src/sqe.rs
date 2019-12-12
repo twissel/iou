@@ -214,7 +214,7 @@ impl<'a> SubmissionQueueEvent<'a> {
         uring_sys::io_uring_prep_link_timeout(self.sqe, ts, 0)
     }
 
-    #[link_name = "rust_io_uring_prep_connect"]
+    #[inline]
     pub unsafe fn io_uring_prep_connect(&mut self, fd: RawFd, addr: &mut libc::sockaddr, addr_len: libc::socklen_t) {
         uring_sys::io_uring_prep_connect(self.sqe, fd, addr, addr_len)
     }
