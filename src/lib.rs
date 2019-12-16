@@ -54,6 +54,9 @@ use std::io;
 use std::mem::MaybeUninit;
 use std::ptr::{self, NonNull};
 use std::time::Duration;
+use std::marker;
+use std::sync;
+use std::ops;
 
 pub use sqe::{SubmissionQueue, SubmissionQueueEvent, SubmissionFlags, FsyncFlags};
 pub use cqe::{CompletionQueue, CompletionQueueEvent};
@@ -286,6 +289,82 @@ impl Drop for IoUring {
 
 unsafe impl Send for IoUring { }
 unsafe impl Sync for IoUring { }
+
+
+enum OwnedOrBorrowed<'ring> {
+    Borrowed {
+        _marker: marker::PhantomData<&'ring mut IoUring>,
+        ring: NonNull<uring_sys::io_uring>
+    },
+    Owned {
+        ring: NonNull<uring_sys::io_uring>,
+        number_of_owners: sync::Arc<sync::atomic::AtomicUsize>
+    }
+}
+
+impl<'ring> OwnedOrBorrowed<'ring> {
+    pub(crate) fn borrowed(ring: &'ring IoUring) -> Self {
+        OwnedOrBorrowed::Borrowed {
+            _marker: marker::PhantomData,
+            ring: NonNull::from(&ring.ring)
+        }
+    }
+
+    pub(crate) unsafe fn owned(ring: NonNull<uring_sys::io_uring>, number_of_owners: sync::Arc<sync::atomic::AtomicUsize>) -> Self {
+        OwnedOrBorrowed::Owned {
+            number_of_owners,
+            ring
+        }
+    }
+}
+
+impl<'ring> Drop for OwnedOrBorrowed<'ring> {
+    fn drop(&mut self) {
+        match self {
+            OwnedOrBorrowed::Borrowed {..} => {},
+            OwnedOrBorrowed::Owned {ring, number_of_owners, ..} => {
+                let owners_left = number_of_owners.fetch_sub(1, sync::atomic::Ordering::Acquire);
+                if owners_left == 1 {
+                    unsafe {
+                        uring_sys::io_uring_queue_exit(ring.as_mut())
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl<'ring> ops::Deref for OwnedOrBorrowed<'ring> {
+    type Target = uring_sys::io_uring;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            OwnedOrBorrowed::Borrowed { ring, ..} => {
+                unsafe { ring.as_ref() }
+            },
+            OwnedOrBorrowed::Owned { ring, ..} => {
+                unsafe { ring.as_ref() }
+            }
+        }
+    }
+}
+
+impl<'ring> ops::DerefMut for OwnedOrBorrowed<'ring> {
+
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            OwnedOrBorrowed::Borrowed { ring, ..} => {
+                unsafe { ring.as_mut() }
+            },
+            OwnedOrBorrowed::Owned { ring, ..} => {
+                unsafe { ring.as_mut() }
+            }
+        }
+    }
+}
+
+unsafe impl<'ring>  Send for OwnedOrBorrowed<'ring> { }
+unsafe impl<'ring>  Sync for OwnedOrBorrowed<'ring> { }
 
 // This has to live in an inline module to test the non-exported resultify macro.
 #[cfg(test)]
