@@ -54,6 +54,10 @@ impl<'ring> CompletionQueue<'ring> {
             Ok(CompletionQueueEvent::new(self.ring, &mut *cqe.assume_init()))
         }
     }
+
+    pub fn ready(&mut self) -> u32 {
+        unsafe { uring_sys::io_uring_cq_ready(self.ring.as_ptr()) }
+    }
 }
 
 unsafe impl<'ring> Send for CompletionQueue<'ring> { }
@@ -114,6 +118,10 @@ impl CompletionQueueEvent {
 
     pub fn result(&self) -> io::Result<usize> {
         resultify!(self.res)
+    }
+
+    pub fn raw_result(&self) -> i32 {
+        self.res
     }
 }
 
