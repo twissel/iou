@@ -93,14 +93,44 @@ bitflags::bitflags! {
     /// # Ok(())
     /// # }
     /// ```
-    pub struct SetupFlags: u32 {
+    pub struct SetupFlags: nix::libc::c_uint {
         /// Poll the IO context instead of defaulting to interrupts.
-        const IOPOLL    = 1 << 0;   /* io_context is polled */
+        const IOPOLL    = uring_sys::IORING_SETUP_IOPOLL;   /* io_context is polled */
         /// Assign a kernel thread to poll the submission queue. Requires elevated privileges to set.
-        const SQPOLL    = 1 << 1;   /* SQ poll thread */
+        const SQPOLL    = uring_sys::IORING_SETUP_SQPOLL;   /* SQ poll thread */
         /// Force the kernel thread created with `SQPOLL` to be bound to the CPU used by the
         /// `SubmissionQueue`. Requires `SQPOLL` set.
-        const SQ_AFF    = 1 << 2;   /* sq_thread_cpu is valid */
+        const SQ_AFF    = uring_sys::IORING_SETUP_SQ_AFF;   /* sq_thread_cpu is valid */
+
+        const ATTACH_WQ = uring_sys::IORING_SETUP_ATTACH_WQ;
+    }
+}
+
+pub struct InitParams {
+    params: uring_sys::io_uring_params
+}
+
+impl InitParams {
+    pub fn set_setup_flags(&mut self, flags: SetupFlags) -> &mut Self {
+        self.params.flags = flags.bits();
+        self
+    }
+
+    pub fn attach_wq(&mut self, ring: &IoUring) -> &mut Self {
+        self.params.flags |= SetupFlags::ATTACH_WQ.bits();
+        self.params.wq_fd = ring.ring.ring_fd as _;
+        self
+    }
+}
+
+impl Default for InitParams {
+    fn default() -> Self {
+        unsafe {
+            let params = MaybeUninit::zeroed().assume_init();
+            Self {
+                params
+            }
+        }
     }
 }
 
@@ -165,6 +195,16 @@ impl IoUring {
             let mut ring = MaybeUninit::uninit();
             let _: i32 = resultify! {
                 uring_sys::io_uring_queue_init(entries as _, ring.as_mut_ptr(), flags.bits() as _)
+            }?;
+            Ok(IoUring { ring: ring.assume_init() })
+        }
+    }
+
+    pub fn new_with_init_params(entries: u32, mut params: InitParams) -> io::Result<Self> {
+        unsafe {
+            let mut ring = MaybeUninit::uninit();
+            let _: i32 = resultify! {
+                uring_sys::io_uring_queue_init_params(entries, ring.as_mut_ptr(), &mut params.params)
             }?;
             Ok(IoUring { ring: ring.assume_init() })
         }
