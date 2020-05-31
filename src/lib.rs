@@ -49,6 +49,7 @@ macro_rules! resultify {
 mod cqe;
 mod sqe;
 mod registrar;
+mod sync;
 
 use std::io;
 use std::mem::MaybeUninit;
@@ -228,6 +229,10 @@ impl IoUring {
     /// Returns the three constituent parts of the `IoUring`.
     pub fn queues(&mut self) -> (SubmissionQueue<'_>, CompletionQueue<'_>, Registrar<'_>) {
         (SubmissionQueue::new(&*self), CompletionQueue::new(&*self), Registrar::new(&*self))
+    }
+
+    pub fn queues_sync(&mut self) -> (sync::SubmissionQueue<'_>, CompletionQueue<'_>, Registrar<'_>) {
+        (sync::SubmissionQueue::new(&*self), CompletionQueue::new(&*self), Registrar::new(&*self))
     }
 
     pub fn next_sqe(&mut self) -> Option<SubmissionQueueEvent<'_>> {
