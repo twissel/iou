@@ -49,7 +49,7 @@ macro_rules! resultify {
 mod cqe;
 mod sqe;
 mod registrar;
-mod sync;
+pub mod sync;
 
 use std::io;
 use std::mem::MaybeUninit;
