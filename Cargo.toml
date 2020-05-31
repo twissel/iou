@@ -12,7 +12,8 @@ edition = "2018"
 [dependencies]
 bitflags = "1.2.0"
 nix = "0.16.0"
-uring-sys = "0.6.1"
+uring-sys = { git = "https://github.com/twissel/uring-sys", rev = "e86f1046dac4c2011e7ad7b5a7c224e68d7d5bd3"}
+parking_lot = "0.10.2"
 
 [dev-dependencies]
 semver = "0.9.0"
